@@ -73,14 +73,15 @@ Thanks.
 
 Pull requests are welcome. Some guidelines:
 
-* Please do not use functions or facilities that are not standard (e.g.,
-`strlcpy()`, `fpurge()`).
+* Please use the Go standard library only.
 
 * Please run the test suite and make sure that your changes pass before
-posting the pull request. To do so:
+posting the pull request:
 
-  1. Save the previous version of `awk` somewhere in your path. Call it `nawk` (for example).
-  1. Run `oldawk=nawk make check > check.out 2>&1`.
+  1. Run `go vet ./...` and `go test ./...`. The tests build the `awk` binary and run it
+     over the regression programs in `bugs-fixed` and the self-checking `T.*` scripts in `testdir`.
+  1. For a wider comparison, save the previous version of `awk` somewhere in your path (call it `nawk`,
+     for example), build the new one with `go build -o a.out .` and run `oldawk=nawk ./REGRESS > check.out 2>&1`.
   1. Search for `BAD` or `error` in the result. In general, look over it manually to make sure there are no errors.
 
 * Please create the pull request with a request
@@ -90,48 +91,26 @@ after the merge but before merging to `master`.
 
 ## Building
 
-The program itself is created by
+This version of awk is written in Go and uses only the standard library. The program itself is created by
 
-	make
+	go build -o awk .
 
-which should produce a sequence of messages roughly like this:
+which produces an executable `awk`; you will eventually want to
+move this to some place like `/usr/bin/awk`. `go install .` puts it in
+your Go binary directory instead. Go 1.23 or later is needed.
 
-	bison -d  awkgram.y
-	awkgram.y: warning: 44 shift/reduce conflicts [-Wconflicts-sr]
-	awkgram.y: warning: 85 reduce/reduce conflicts [-Wconflicts-rr]
-	awkgram.y: note: rerun with option '-Wcounterexamples' to generate conflict counterexamples
-	gcc -g -Wall -pedantic -Wcast-qual   -O2   -c -o awkgram.tab.o awkgram.tab.c
-	gcc -g -Wall -pedantic -Wcast-qual   -O2   -c -o b.o b.c
-	gcc -g -Wall -pedantic -Wcast-qual   -O2   -c -o main.o main.c
-	gcc -g -Wall -pedantic -Wcast-qual   -O2   -c -o parse.o parse.c
-	gcc -g -Wall -pedantic -Wcast-qual -O2 maketab.c -o maketab
-	./maketab awkgram.tab.h >proctab.c
-	gcc -g -Wall -pedantic -Wcast-qual   -O2   -c -o proctab.o proctab.c
-	gcc -g -Wall -pedantic -Wcast-qual   -O2   -c -o tran.o tran.c
-	gcc -g -Wall -pedantic -Wcast-qual   -O2   -c -o lib.o lib.c
-	gcc -g -Wall -pedantic -Wcast-qual   -O2   -c -o run.o run.c
-	gcc -g -Wall -pedantic -Wcast-qual   -O2   -c -o lex.o lex.c
-	gcc -g -Wall -pedantic -Wcast-qual   -O2 awkgram.tab.o b.o main.o parse.o proctab.o tran.o lib.o run.o lex.o   -lm
+The source is laid out like this:
 
-This produces an executable `a.out`; you will eventually want to
-move this to some place like `/usr/bin/awk`.
+* `main.go`: the command.
+* `internal/interp`: the interpreter: the lexer, the grammar (`grammar.y`, from which `go generate` makes
+  `grammar.go` with `goyacc`), the tree walker, records and fields, input and output.
+* `internal/regex`: the regular expression engine, a port of the original's `b.c`.
+* `internal/libc`: the parts of the C library whose exact behaviour awk shows: number conversion,
+  printf formatting, `random`, and the character conversions of the UTF-8 locale.
+* `internal/u8`: UTF-8 helpers shared by the interpreter and the regular expression engine.
 
-If your system does not have `yacc` or `bison` (the GNU
-equivalent), you need to install one of them first.
-The default in the `makefile` is `bison`; you will have
-to edit the `makefile` to use `yacc`.
-
-NOTE: This version uses ISO/IEC C99, as you should also.  We have
-compiled this without any changes using `gcc -Wall` and/or local C
-compilers on a variety of systems, but new systems or compilers
-may raise some new complaint; reports of difficulties are
-welcome.
-
-This compiles without change on Macintosh OS X using `gcc` and
-the standard developer tools.
-
-You can also use `make CC=g++` to build with the GNU C++ compiler,
-should you choose to do so.
+Only a change to the grammar needs `goyacc` (`go install golang.org/x/tools/cmd/goyacc@latest`);
+then run `go generate ./internal/interp`.
 
 ## A Note About Releases
 

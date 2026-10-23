@@ -3,7 +3,7 @@
 if [ ! -f ../a.out ]
 then
 	echo Making executable
-	(cd .. ; make) || exit 0
+	(cd .. ; go build -o a.out .) || exit 0
 fi
 
 for i in *.awk

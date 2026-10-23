@@ -1,8 +1,5 @@
 a.out
-maketab
-proctab.c
-*.o
-ytab* 
+/awk
 testdir/foo*
 testdir/temp*
 *.pdf
